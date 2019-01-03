@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/paypal/gorealis"
+	realis "github.com/paypal/gorealis"
 	"github.com/paypal/gorealis/gen-go/apache/aurora"
 	"github.com/paypal/gorealis/response"
 )
@@ -554,6 +554,37 @@ func main() {
 
 		fmt.Print(result.String())
 
+	case "SLADrainHosts":
+		fmt.Println("Setting hosts to DRAINING using SLA aware draining")
+		if hostList == "" {
+			log.Fatal("No hosts specified to drain")
+		}
+		hosts := strings.Split(hostList, ",")
+
+		policy := aurora.SlaPolicy{PercentageSlaPolicy: &aurora.PercentageSlaPolicy{Percentage: 50.0}}
+
+		result, err := r.SLADrainHosts(&policy, 30, hosts...)
+		if err != nil {
+			log.Fatalf("error: %+v\n", err.Error())
+		}
+
+		// Monitor change to DRAINING and DRAINED mode
+		hostResult, err := monitor.HostMaintenance(
+			hosts,
+			[]aurora.MaintenanceMode{aurora.MaintenanceMode_DRAINED, aurora.MaintenanceMode_DRAINING},
+			5,
+			10)
+		if err != nil {
+			for host, ok := range hostResult {
+				if !ok {
+					fmt.Printf("Host %s did not transtion into desired mode(s)\n", host)
+				}
+			}
+			log.Fatalf("error: %+v\n", err.Error())
+		}
+
+		fmt.Print(result.String())
+
 	case "endMaintenance":
 		fmt.Println("Setting hosts to ACTIVE")
 		if hostList == "" {
@@ -581,6 +612,21 @@ func main() {
 		}
 
 		fmt.Print(result.String())
+
+	case "getPendingReasons":
+		fmt.Println("Getting pending reasons")
+		taskQ := &aurora.TaskQuery{
+			Role:        &job.JobKey().Role,
+			Environment: &job.JobKey().Environment,
+			JobName:     &job.JobKey().Name,
+		}
+		reasons, err := r.GetPendingReason(taskQ)
+		if err != nil {
+			log.Fatalf("error: %+v\n ", err)
+		}
+
+		fmt.Printf("length: %d\n ", len(reasons))
+		fmt.Printf("tasks: %+v\n", reasons)
 
 	case "getJobs":
 		fmt.Println("GetJobs...role: ", role)
