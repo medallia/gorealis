@@ -960,7 +960,7 @@ func (r *realisClient) JobUpdateDetails(updateQuery aurora.JobUpdateQuery) (*aur
 	r.logger.DebugPrintf("GetJobUpdateDetails Thrift Payload: %+v\n", updateQuery)
 
 	resp, retryErr := r.thriftCallWithRetries(func() (*aurora.Response, error) {
-		return r.client.GetJobUpdateDetails(&updateQuery)
+		return r.client.GetJobUpdateDetails(nil, &updateQuery)
 	})
 
 	if retryErr != nil {
